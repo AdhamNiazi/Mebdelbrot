@@ -1,9 +1,12 @@
-#include "gfx.h"
+extern "C" {
+    #include "gfx.h"
+}
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <complex.h>
 #include <cuComplex.h>
+#include <cuda.h>
 
 const int width = 640; 
 const int height = 480; 
