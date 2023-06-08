@@ -14,9 +14,6 @@ double xmax = 0.5;
 double ymin = -1.0;
 double ymax = 1.0;
 
-
-
-
 static int compute_point(double x, double y, int max)
 {
     double complex z = 0;
@@ -41,7 +38,7 @@ void compute_image(double xmin, double xmax, double ymin, double ymax, int maxit
     int width = gfx_xsize();
     int height = gfx_ysize();
 
-  //  #pragma omp parallel for private(i) shared(width, height, xmin, xmax, ymin, ymax, maxiter)
+    // #pragma omp parallel for private(i) shared(width, height, xmin, xmax, ymin, ymax, maxiter)
     for (j = 0; j < height; j++)
     {
         for (i = 0; i < width; i++)
@@ -87,9 +84,15 @@ void update_position(char key, double *xmin, double *xmax, double *ymin, double 
 int main(int argc, char *argv[])
 {
     int maxiter = 500;
- 
+    int screen_width = 640;
+    int screen_height = 480;
 
-    gfx_open(640, 480, "Mandelbrot Fractal");
+    if (argc >= 3) {
+        screen_width = atoi(argv[1]);
+        screen_height = atoi(argv[2]);
+    }
+
+    gfx_open(screen_width, screen_height, "Mandelbrot Fractal");
 
     printf("coordinates: %lf %lf %lf %lf\n", xmin, xmax, ymin, ymax);
 
@@ -106,7 +109,8 @@ int main(int argc, char *argv[])
             exit(0);
         else if (c == 'w' || c == 'a' || c == 's' || c == 'd')
         {
-            update_position(c, &xmin, &xmax, &ymin, &ymax);
+            update_position(c, &xmin, &xmax, &ymin
+, &ymax);
         }
 
         gfx_clear();
