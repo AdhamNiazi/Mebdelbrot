@@ -6,6 +6,7 @@
 #include <complex.h>
 #include <cuComplex.h>
 #include <omp.h>
+#include <time.h>
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -259,6 +260,8 @@ __global__ void compute_image_kernel(double xmin, double xmax, double ymin, doub
         int index = j * WIDTH + i;
         output[index] = iter;
     }
+    
+
 }
 
 // Function to compute the fractal image using CUDA
@@ -305,6 +308,8 @@ void update_position(char key, double* xmin, double* xmax, double* ymin, double*
 
 int main(int argc, char* argv[])
 {
+    clock_t t;
+    
     double xmin = -1.5;
     double xmax = 0.5;
     double ymin = -1.0;
@@ -313,15 +318,15 @@ int main(int argc, char* argv[])
 
     gfx_open(WIDTH, HEIGHT, "Mandelbrot Fractal");
 
-    printf("coordinates: %lf %lf %lf %lf\n", xmin, xmax, ymin, ymax);
-
     gfx_clear_color(0, 0, 255);
     gfx_clear();
 
     int* output = (int*)malloc(WIDTH * HEIGHT * sizeof(int));
-
+    t = clock();
     compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output);
-
+    t = clock() - t;
+    
+	printf("Execution Time: %f seconds\n",  ((float)t) / CLOCKS_PER_SEC);
     while (1)
     {
         int c = gfx_wait();
@@ -332,7 +337,10 @@ int main(int argc, char* argv[])
         {
             update_position(c, &xmin, &xmax, &ymin, &ymax);
             gfx_clear();
+            t = clock();
             compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output);
+            t = clock() - t;
+            printf("Execution Time: %f seconds\n",  ((float)t) / CLOCKS_PER_SEC);
         }
 
         gfx_clear();
