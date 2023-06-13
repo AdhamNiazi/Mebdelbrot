@@ -6,9 +6,6 @@
 #include <string.h>
 #include <complex.h>
 #include <omp.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/extensions/XTest.h>
 
 
 // Variables to store the current position
@@ -93,34 +90,6 @@ void update_position(char key, double *xmin, double *xmax, double *ymin, double 
 	}
 }
 
-// Function to handle scroll events
-void handle_scroll_event(XEvent *event)
-{
-    int direction = event->xbutton.button;
-
-    // Zoom in or out based on scroll direction
-    if (direction == Button4) // Scroll up
-    {
-        double xCenter = (xmin + xmax) / 2;
-        double yCenter = (ymin + ymax) / 2;
-
-        xmin = (xmin - xCenter) * 0.9 + xCenter;
-        xmax = (xmax - xCenter) * 0.9 + xCenter;
-        ymin = (ymin - yCenter) * 0.9 + yCenter;
-        ymax = (ymax - yCenter) * 0.9 + yCenter;
-    }
-    else if (direction == Button5) // Scroll down
-    {
-        double xCenter = (xmin + xmax) / 2;
-        double yCenter = (ymin + ymax) / 2;
-
-        xmin = (xmin - xCenter) * 1.1 + xCenter;
-        xmax = (xmax - xCenter) * 1.1 + xCenter;
-        ymin = (ymin - yCenter) * 1.1 + yCenter;
-        ymax = (ymax - yCenter) * 1.1 + yCenter;
-    }
-}
-
 int main(int argc, char *argv[])
 {
 	int maxiter = 500;
@@ -139,12 +108,6 @@ int main(int argc, char *argv[])
 
 	compute_image(xmin, xmax, ymin, ymax, maxiter);
 
-    // Initialize X11 display and select input events
-    Display *display = XOpenDisplay(NULL);
-    Window root = DefaultRootWindow(display);
-    XEvent event;
-    XSelectInput(display, root, ButtonPressMask);
-
 	while (1)
 	{
 		int c = gfx_wait();
@@ -156,19 +119,8 @@ int main(int argc, char *argv[])
 	    		update_position(c, &xmin, &xmax, &ymin, &ymax);
 		}
 
-        // Handle mouse scroll events
-        while (XCheckTypedEvent(display, ButtonPress, &event))
-        {
-            if (event.xbutton.button == Button4 || event.xbutton.button == Button5)
-            {
-                handle_scroll_event(&event);
-            }
-        }
-
 		gfx_clear();
-			compute_image(xmin, xmax, ymin, ymax, maxiter);
+		compute_image(xmin, xmax, ymin, ymax, maxiter);
 	}
-
-    XCloseDisplay(display);
 	return 0;
 }
