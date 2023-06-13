@@ -313,16 +313,16 @@ int main(int argc, char* argv[])
     double ymin = -1.0;
     double ymax = 1.0;
     int maxiter = 500;
-    if (argc != 4) {
+    if (argc != 1 && argc != 4) {
         printf("Usage: %s <WIDTH> <HEIGHT> <NUM THREADS>\n", argv[0]);
         return 1;
     }
+    if (argc == 4) {
+         WIDTH = atoi(argv[1]);
+        HEIGHT = atoi(argv[2]);
+        dim = atoi(argv[3]);
+    }
     
-    // Convert command line arguments to integers
-    WIDTH = atoi(argv[1]);
-    HEIGHT = atoi(argv[2]);
-    dim = atoi(argv[3]);
-
     gfx_open(WIDTH, HEIGHT, "Mandelbrot Fractal");
 
     gfx_clear_color(0, 0, 255);
