@@ -8,8 +8,8 @@
 #include <omp.h>
 #include <time.h>
 
-#define WIDTH 640
-#define HEIGHT 480
+// #define WIDTH 640
+// #define HEIGHT 480
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -28,7 +28,10 @@ static Window  gfx_window;
 static GC      gfx_gc;
 static Colormap gfx_colormap;
 static int      gfx_fast_color_mode = 0;
-
+int WIDTH = 640;
+int HEIGHT = 480;
+int dim = 16;
+double scale = 3;
 /* These values are saved by gfx_wait then retrieved later by gfx_xpos and gfx_ypos. */
 
 static int saved_xpos = 0;
@@ -235,9 +238,7 @@ int gfx_ysize()
 	return saved_ysize;
 }
 
-
-
-__global__ void compute_image_kernel(double xmin, double xmax, double ymin, double ymax, int maxiter, int* output)
+__global__ void compute_image_kernel(double xmin, double xmax, double ymin, double ymax, int maxiter, int* output, int WIDTH, int HEIGHT)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -270,20 +271,20 @@ void compute_image_cuda(double xmin, double xmax, double ymin, double ymax, int 
     int* d_output;
     cudaMalloc(&d_output, WIDTH * HEIGHT * sizeof(int));
 
-    dim3 threadsPerBlock(16, 16);
+    dim3 threadsPerBlock(dim, dim);
     dim3 numBlocks((WIDTH + threadsPerBlock.x - 1) / threadsPerBlock.x, (HEIGHT + threadsPerBlock.y - 1) / threadsPerBlock.y);
-
-    compute_image_kernel<<<numBlocks, threadsPerBlock>>>(xmin, xmax, ymin, ymax, maxiter, d_output);
+    printf("Blocks: %d, Threads per Block: %d, Size: %d*%d, Depth: %d ", numBlocks.x * numBlocks.y * numBlocks.z, threadsPerBlock.x * threadsPerBlock.y * threadsPerBlock.z, WIDTH, HEIGHT, maxiter);
+    compute_image_kernel<<<numBlocks, threadsPerBlock>>>(xmin, xmax, ymin, ymax, maxiter, d_output, WIDTH, HEIGHT);
     cudaMemcpy(output, d_output, WIDTH * HEIGHT * sizeof(int), cudaMemcpyDeviceToHost);
-
     cudaFree(d_output);
 }
 
 // Function to update the position based on the key input
 void update_position(char key, double* xmin, double* xmax, double* ymin, double* ymax)
 {
-    double xstep = (*xmax - *xmin) / 10;
-    double ystep = (*ymax - *ymin) / 10;
+    double step = scale / dim;
+    double xstep = (*xmax - *xmin) / 10 * step;
+    double ystep = (*ymax - *ymin) / 10 * step;
 
     switch (key)
     {
@@ -309,12 +310,30 @@ void update_position(char key, double* xmin, double* xmax, double* ymin, double*
 int main(int argc, char* argv[])
 {
     clock_t t;
-    
-    double xmin = -1.5;
+    double xcen = -0.5;
+    double ycen = 0.5;
+
+    double xmin = xcen - (scale/2);
+    double ymin = ycen - (scale/2);
+    double step = scale / dim;
+
     double xmax = 0.5;
-    double ymin = -1.0;
+
     double ymax = 1.0;
     int maxiter = 500;
+    if (argc >= 2) 
+        WIDTH = atoi(argv[1]);
+    if (argc >= 3) 
+        HEIGHT = atoi(argv[2]);
+    if (argc >= 4) 
+        dim = atoi(argv[3]);
+    if (argc == 5)
+        maxiter = atoi(argv[4]);
+    
+    if (argc > 5) {
+        printf("Usage: %s <WIDTH> <HEIGHT> <NUM THREADS> <MAX ITER>\n", argv[0]);
+        return 1;
+    }
 
     gfx_open(WIDTH, HEIGHT, "Mandelbrot Fractal");
 
@@ -341,6 +360,10 @@ int main(int argc, char* argv[])
             compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output);
             t = clock() - t;
             printf("Execution Time: %f seconds\n",  ((float)t) / CLOCKS_PER_SEC);
+        } else if (c == 'z') {
+            scale *= 1.25;
+        } else if (c == 'x') {
+            scale *= .80;
         }
 
         gfx_clear();
@@ -351,9 +374,9 @@ int main(int argc, char* argv[])
                 int iter = output[j * WIDTH + i];
 
                 // Compute color based on iteration count
-                int r = (iter * 10) % 255;
-                int g = (iter * 5) % 255;
-                int b = (iter * 20) % 255;
+                int b = (iter * 10) % 255;
+                int r = (iter * 5) % 255;
+                int g = (iter * 20) % 255;
 
                 gfx_color(r, g, b);
                 gfx_point(i, j);
