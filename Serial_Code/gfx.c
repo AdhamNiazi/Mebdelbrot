@@ -35,6 +35,7 @@ static int saved_ypos = 0;
 static int saved_xsize = 0;
 static int saved_ysize = 0;
 
+
 /* Open a new graphics window. */
 
 void gfx_open( int width, int height, const char *title )
