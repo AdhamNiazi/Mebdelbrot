@@ -31,6 +31,7 @@ static int      gfx_fast_color_mode = 0;
 int WIDTH = 640;
 int HEIGHT = 480;
 int dim = 16;
+double scale = 3;
 /* These values are saved by gfx_wait then retrieved later by gfx_xpos and gfx_ypos. */
 
 static int saved_xpos = 0;
@@ -281,8 +282,9 @@ void compute_image_cuda(double xmin, double xmax, double ymin, double ymax, int 
 // Function to update the position based on the key input
 void update_position(char key, double* xmin, double* xmax, double* ymin, double* ymax)
 {
-    double xstep = (*xmax - *xmin) / 10;
-    double ystep = (*ymax - *ymin) / 10;
+    double step = scale / dim;
+    double xstep = (*xmax - *xmin) / 10 * step;
+    double ystep = (*ymax - *ymin) / 10 * step;
 
     switch (key)
     {
@@ -308,21 +310,31 @@ void update_position(char key, double* xmin, double* xmax, double* ymin, double*
 int main(int argc, char* argv[])
 {
     clock_t t;
-    double xmin = -1.5;
+    double xcen = -0.5;
+    double ycen = 0.5;
+
+    double xmin = xcen - (scale/2);
+    double ymin = ycen - (scale/2);
+    double step = scale / dim;
+
     double xmax = 0.5;
-    double ymin = -1.0;
+
     double ymax = 1.0;
     int maxiter = 500;
-    if (argc != 1 && argc != 4) {
-        printf("Usage: %s <WIDTH> <HEIGHT> <NUM THREADS>\n", argv[0]);
+    if (argc >= 2) 
+        WIDTH = atoi(argv[1]);
+    if (argc >= 3) 
+        HEIGHT = atoi(argv[2]);
+    if (argc >= 4) 
+        dim = atoi(argv[3]);
+    if (argc == 5)
+        maxiter = atoi(argv[4]);
+    
+    if (argc > 5) {
+        printf("Usage: %s <WIDTH> <HEIGHT> <NUM THREADS> <MAX ITER>\n", argv[0]);
         return 1;
     }
-    if (argc == 4) {
-         WIDTH = atoi(argv[1]);
-        HEIGHT = atoi(argv[2]);
-        dim = atoi(argv[3]);
-    }
-    
+
     gfx_open(WIDTH, HEIGHT, "Mandelbrot Fractal");
 
     gfx_clear_color(0, 0, 255);
@@ -348,6 +360,10 @@ int main(int argc, char* argv[])
             compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output);
             t = clock() - t;
             printf("Execution Time: %f seconds\n",  ((float)t) / CLOCKS_PER_SEC);
+        } else if (c == 'z') {
+            scale *= 1.25;
+        } else if (c == 'x') {
+            scale *= .80;
         }
 
         gfx_clear();
