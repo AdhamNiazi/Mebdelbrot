@@ -238,15 +238,16 @@ int gfx_ysize()
 	return saved_ysize;
 }
 
-__global__ void compute_image_kernel(double xmin, double xmax, double ymin, double ymax, int maxiter, int* output, int WIDTH, int HEIGHT)
+__global__ void compute_image_kernel(double xmin, double xmax, double ymin, double ymax, int maxiter, int* output, int WIDTH, int HEIGHT, double zoom)
 {
+    
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (i < WIDTH && j < HEIGHT)
     {
-        double x = xmin + i * (xmax - xmin) / WIDTH;
-        double y = ymin + j * (ymax - ymin) / HEIGHT;
+        double x = xmin + i * (xmax - xmin) / (WIDTH * zoom);
+        double y = ymin + j * (ymax - ymin) / (HEIGHT * zoom);
 
         cuDoubleComplex z = make_cuDoubleComplex(0, 0);
         cuDoubleComplex alpha = make_cuDoubleComplex(x, y);
@@ -266,7 +267,8 @@ __global__ void compute_image_kernel(double xmin, double xmax, double ymin, doub
 }
 
 // Function to compute the fractal image using CUDA
-void compute_image_cuda(double xmin, double xmax, double ymin, double ymax, int maxiter, int* output)
+
+void compute_image_cuda(double xmin, double xmax, double ymin, double ymax, int maxiter, int* output, double zoom)
 {
     int* d_output;
     cudaMalloc(&d_output, WIDTH * HEIGHT * sizeof(int));
@@ -274,13 +276,13 @@ void compute_image_cuda(double xmin, double xmax, double ymin, double ymax, int 
     dim3 threadsPerBlock(dim, dim);
     dim3 numBlocks((WIDTH + threadsPerBlock.x - 1) / threadsPerBlock.x, (HEIGHT + threadsPerBlock.y - 1) / threadsPerBlock.y);
     printf("Blocks: %d, Threads per Block: %d, Size: %d*%d, Depth: %d ", numBlocks.x * numBlocks.y * numBlocks.z, threadsPerBlock.x * threadsPerBlock.y * threadsPerBlock.z, WIDTH, HEIGHT, maxiter);
-    compute_image_kernel<<<numBlocks, threadsPerBlock>>>(xmin, xmax, ymin, ymax, maxiter, d_output, WIDTH, HEIGHT);
+    compute_image_kernel<<<numBlocks, threadsPerBlock>>>(xmin, xmax, ymin, ymax, maxiter, d_output, WIDTH, HEIGHT, zoom);
     cudaMemcpy(output, d_output, WIDTH * HEIGHT * sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_output);
 }
 
 // Function to update the position based on the key input
-void update_position(char key, double* xmin, double* xmax, double* ymin, double* ymax)
+void update_position(char key, double* xmin, double* xmax, double* ymin, double* ymax, double* zoom)
 {
     double step = scale / dim;
     double xstep = (*xmax - *xmin) / 10 * step;
@@ -304,6 +306,14 @@ void update_position(char key, double* xmin, double* xmax, double* ymin, double*
         *xmin += xstep;
         *xmax += xstep;
         break;
+    case '+':
+        *zoom *= 0.95; // Zoom in by reducing the zoom factor
+        scale *= 1.05;
+        break;
+    case '-':
+        *zoom /= 0.95; // Zoom out by increasing the zoom factor
+        scale *= 0.95;
+        break;
     }
 }
 
@@ -316,7 +326,7 @@ int main(int argc, char* argv[])
     double xmin = xcen - (scale/2);
     double ymin = ycen - (scale/2);
     double step = scale / dim;
-
+    double zoom = 1.0;
     double xmax = 0.5;
 
     double ymax = 1.0;
@@ -342,7 +352,7 @@ int main(int argc, char* argv[])
 
     int* output = (int*)malloc(WIDTH * HEIGHT * sizeof(int));
     t = clock();
-    compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output);
+    compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output, zoom);
     t = clock() - t;
     
 	printf("Execution Time: %f seconds\n",  ((float)t) / CLOCKS_PER_SEC);
@@ -352,18 +362,14 @@ int main(int argc, char* argv[])
 
         if (c == 'q')
             break;
-        else if (c == 'w' || c == 'a' || c == 's' || c == 'd')
+        else if (c == 'w' || c == 'a' || c == 's' || c == 'd' || c == '+' || c == '-')
         {
-            update_position(c, &xmin, &xmax, &ymin, &ymax);
+            update_position(c, &xmin, &xmax, &ymin, &ymax, &zoom);
             gfx_clear();
             t = clock();
-            compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output);
+            compute_image_cuda(xmin, xmax, ymin, ymax, maxiter, output, zoom);
             t = clock() - t;
             printf("Execution Time: %f seconds\n",  ((float)t) / CLOCKS_PER_SEC);
-        } else if (c == 'z') {
-            scale *= 1.25;
-        } else if (c == 'x') {
-            scale *= .80;
         }
 
         gfx_clear();
